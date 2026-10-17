@@ -1,9 +1,9 @@
 class Camera {
     PVector position = new PVector(0, 0);
     float speed = 5.0;
-    float zoom = 1.0;   // 1.0 means a meter will be display as 100 pixels
-    float min_zoom = 0.1;
-    float max_zoom = 5.0;
+    float zoom = 100.0;   // 100.0 means a meter will be display as 100 pixels
+    float min_zoom = 10.0;
+    float max_zoom = 1000.0;
 }
 
 
@@ -21,7 +21,7 @@ void CameraKeyboardInput(Camera camera, KeyboardState state) {
     if (state.s) {
         direction.y -= 1.0;
     }
-    camera.position.add(direction.normalize().mult(camera.speed));
+    camera.position.add(direction.normalize().mult(camera.speed * 100 / camera.zoom));
 }
 
 
