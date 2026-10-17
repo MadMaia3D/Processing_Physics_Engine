@@ -1,26 +1,14 @@
 class Camera {
     PVector position = new PVector(0, 0);
-    float speed = 5.0;
-    float zoom = 100.0;   // 100.0 means a meter will be display as 100 pixels
-    float min_zoom = 10.0;
-    float max_zoom = 1000.0;
+    float speed = 10.0;
+    float zoom = 100.0;   // How many pixels in a meter.
+    float min_zoom = 1.0;
+    float max_zoom = 10000.0;
 }
 
 
 void CameraKeyboardInput(Camera camera, KeyboardState state) {
-    PVector direction = new PVector(0, 0);
-    if (state.a) {
-        direction.x -= 1.0;
-    }
-    if (state.d) {
-        direction.x += 1.0;
-    }
-    if (state.w) {
-        direction.y += 1.0;
-    }
-    if (state.s) {
-        direction.y -= 1.0;
-    }
+    PVector direction = InputWASDAsVector(state);
     camera.position.add(direction.normalize().mult(camera.speed * 100 / camera.zoom));
 }
 

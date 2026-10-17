@@ -122,10 +122,19 @@ boolean SolveCircleCollision(Body body1, Body body2) {
 }
 
 
-// Uses SAT to solve polygons projection
-boolean CheckPolyCollision(Body body_A, Body body_B) {
+class CollisionInfo {
+    PVector normal;
+    float depth;
+}
+
+
+// Uses SAT to solve collision between polygons
+boolean CheckPolyCollision(Body body_A, Body body_B, CollisionInfo out) {
     PVector[] model_A = GetTransformedModel(body_A);
-    PVector[] model_B = GetTransformedModel(body_B);    
+    PVector[] model_B = GetTransformedModel(body_B);
+    out.normal = new PVector(0, 0);
+    out.depth = Float.MAX_VALUE;
+
 
     // Use the normals of the models as projection axis
     for (int model = 0; model < 2; model++) {
@@ -139,7 +148,7 @@ boolean CheckPolyCollision(Body body_A, Body body_B) {
 
             // Edge vetor to false normal (not normalized normal vector);
             PVector edge_vector = PVector.sub(v2, v1);
-            PVector projection_axis = new PVector(-edge_vector.y, edge_vector.x);
+            PVector projection_axis = new PVector(-edge_vector.y, edge_vector.x).normalize();
 
             // After getting the projection axis
             // Loop through all models vertices
@@ -165,13 +174,40 @@ boolean CheckPolyCollision(Body body_A, Body body_B) {
 
             // Now when check if the one dimensional projection of model_A
             // collides with the one dimensional projection of model_B
-            if (a_max < b_min || a_min > b_max) {
+            // If not, this means that the two objects aren't colliding
+            if (a_max < b_min || b_max < a_min) {
                 return false;
+            }
+
+            // abs function called for account for the signal of the depth
+            //float depth = min(a_max - b_min, b_max - a_min);
+            float depth_1 = a_max - b_min;
+            float depth_2 = a_min - b_max;
+            float final_depth = depth_1;
+            if (abs(depth_1) > abs(depth_2)) {
+                final_depth = depth_2;
+            }
+
+            // If the depth is the smallest ever encountered, store it in the output CollisionInfo
+            if (abs(final_depth) < abs(out.depth)) {
+                out.depth = final_depth;
+                out.normal = projection_axis;
             }
         }
     }
-    // If there collision on all axis, this means that the two shapes are colliding
+    // If there is collision on all axis, this means that the two shapes are colliding
     return true;
+}
+
+
+boolean SolvePolyCollision(Body body1, Body body2) {
+    CollisionInfo collision = new CollisionInfo();
+    boolean collided = CheckPolyCollision(body1, body2, collision);
+    if (collided) {
+        body1.position.add(PVector.mult(collision.normal, -collision.depth/2));
+        body2.position.add(PVector.mult(collision.normal, collision.depth/2));
+    }
+    return collided;
 }
 
 
@@ -181,7 +217,7 @@ boolean SolveCollision(Body body1, Body body2) {
     if (shape_A == BodyShapeType.CIRCLE && shape_B == BodyShapeType.CIRCLE) {
         return SolveCircleCollision(body1, body2);
     } else if (shape_A == BodyShapeType.POLY && shape_B == BodyShapeType.POLY) {
-        return CheckPolyCollision(body1, body2);
+        return SolvePolyCollision(body1, body2);
     }
     return false;
 }
@@ -209,13 +245,13 @@ PVector[] CreateRegularPolygonModel(int sides, float width, float height) {
 
     for (int i = 0; i < output.length; i++) {
         output[i] = new PVector(0, 1).rotate(radians_step * i);
-        output[i].x = output[i].x * width;
-        output[i].y = output[i].y * height;
+        output[i].x = output[i].x * (width/2);
+        output[i].y = output[i].y * (height/2);
     }
     return output;
 }
 
 
 PVector[] CreateRegularPolygonModel(int sides, float radius) {
-    return CreateRegularPolygonModel(sides, radius, radius);
+    return CreateRegularPolygonModel(sides, radius * 2, radius * 2);
 }
