@@ -154,9 +154,7 @@ boolean CheckPolyCircleOverlap(Body poly_body, Body circle, CollisionInfo out) {
 
     // Do a extra projection but using the axis between the circle and nearest vertex as the projection vector
     PVector nearest_vertex = SATFindNearestVertexToCircle(circle.position, poly_model);
-    PVector to_nearest_vector = PVector.sub(nearest_vertex, circle.position);
-
-    PVector projection_axis = new PVector(-to_nearest_vector.y, to_nearest_vector.x).normalize();
+    PVector projection_axis = PVector.sub(nearest_vertex, circle.position).normalize();
 
     ProjectionMinMax poly_proj = SATGetPolyProjectionMinMax(poly_model, projection_axis);
     ProjectionMinMax circle_proj = SATGetCircleProjectionMinMax(circle.position, circle.radius, projection_axis);

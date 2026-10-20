@@ -26,13 +26,14 @@ void setup() {
         float x = random(-5, 5);
         float y = random(-3, 3);
         PVector position = new PVector(x, y);
+        float radius = random(0.3, 0.5);
         int type = (int)random(0, 2);
         
         if (type == 0) {
-            PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), random(0.4, 0.5));
+            PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), radius);
             polygons[i] = CreatePolyBody(position, poly_model);
         } else {
-            polygons[i] = CreateCircleBody(position, random(0.3, 0.45));
+            polygons[i] = CreateCircleBody(position, radius - 0.05);
         }
         
         polygons[i].display_color = color(random(0, 360), 50, 100);
