@@ -21,12 +21,20 @@ void setup() {
 
     colorMode(HSB, 360, 100, 100);
 
-    polygons = new Body[10];
+    polygons = new Body[50];
     for (int i = 0; i < polygons.length; i++) {
         float x = random(-5, 5);
         float y = random(-3, 3);
-        PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), 0.5);
-        polygons[i] = CreatePolyBody(new PVector(x, y), poly_model);
+        PVector position = new PVector(x, y);
+        int type = (int)random(0, 2);
+        
+        if (type == 0) {
+            PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), random(0.4, 0.5));
+            polygons[i] = CreatePolyBody(position, poly_model);
+        } else {
+            polygons[i] = CreateCircleBody(position, random(0.3, 0.4));
+        }
+        
         polygons[i].display_color = color(random(0, 360), 50, 100);
         polygons[i].rotation = random(-PI, PI);
     }
@@ -39,7 +47,7 @@ void draw() {
         CameraKeyboardInput(camera, keyboard);
     } else {
         PVector arrows_direction = InputWASDAsVector(keyboard);
-        float travel_speed = keyboard.shift ? 0.05 : 0.01;
+        float travel_speed = keyboard.shift ? 0.1 : 0.01;
         polygons[0].position.add(arrows_direction.normalize().mult(travel_speed));
     }
 
