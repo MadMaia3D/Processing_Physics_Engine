@@ -32,7 +32,7 @@ void setup() {
             PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), random(0.4, 0.5));
             polygons[i] = CreatePolyBody(position, poly_model);
         } else {
-            polygons[i] = CreateCircleBody(position, random(0.3, 0.4));
+            polygons[i] = CreateCircleBody(position, random(0.3, 0.45));
         }
         
         polygons[i].display_color = color(random(0, 360), 50, 100);

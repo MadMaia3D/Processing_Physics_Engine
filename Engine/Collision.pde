@@ -1,3 +1,63 @@
+// -------------------------------- SAT Utility --------------------------------
+class ProjectionMinMax {
+    float min;
+    float max;
+}
+
+
+ProjectionMinMax SATGetPolyProjectionMinMax(PVector[] model_to_project, PVector projection_axis) {
+    ProjectionMinMax out = new ProjectionMinMax();
+    out.min = model_to_project[0].dot(projection_axis);
+    out.max = out.min;
+
+    for (int j = 1; j < model_to_project.length; j++) {
+        float dot = model_to_project[j].dot(projection_axis);
+        out.min = min(out.min, dot);
+        out.max = max(out.max, dot);
+    }
+    return out;
+}
+
+
+ProjectionMinMax SATGetCircleProjectionMinMax(PVector circle_center, float radius, PVector projection_axis) {
+    // Project the circle center then add/subtract the radius to find the circle max and min projections
+    ProjectionMinMax out = new ProjectionMinMax();
+    float projected_center = circle_center.dot(projection_axis);
+    out.max = projected_center + radius;
+    out.min = projected_center - radius;
+    return out;
+}
+
+boolean SATCheckProjectionsCollision(ProjectionMinMax proj1, ProjectionMinMax proj2) {
+    return !(proj1.max < proj2.min || proj1.min > proj2.max);
+}
+
+
+float SATGetProjectionsCollisionDepth(ProjectionMinMax proj1, ProjectionMinMax proj2) {
+    float depth_1 = proj1.max - proj2.min;
+    float depth_2 = proj1.min - proj2.max;
+    float final_depth = depth_1;
+    if (abs(depth_1) > abs(depth_2)) {
+        final_depth = depth_2;
+    }
+    return final_depth;
+}
+
+
+PVector SATFindNearestVertexToCircle(PVector circle_center, PVector[] vertices) {
+    // Find the poly nearest vertex to circle
+    int nearest_vertex_index = 0;
+    float nearest_distance_squared = PVector.sub(circle_center, vertices[0]).magSq();
+    for (int i = 1; i < vertices.length; i++) {
+        float current_distance_squared = PVector.sub(circle_center, vertices[i]).magSq();
+        if (current_distance_squared < nearest_distance_squared) {
+            nearest_distance_squared = current_distance_squared;
+            nearest_vertex_index = i;
+        }
+    }
+    return vertices[nearest_vertex_index];
+}
+
 // -------------------------------- Shapes Overlap Checks --------------------------------
 boolean CheckCircleOverlap(Body body1, Body body2) {
     float distance_squared = PVector.sub(body1.position, body2.position).magSq();
@@ -32,44 +92,18 @@ boolean CheckPolysOverlap(Body body_A, Body body_B, CollisionInfo out) {
             PVector edge_vector = PVector.sub(v2, v1);
             PVector projection_axis = new PVector(-edge_vector.y, edge_vector.x).normalize();
 
-            // After getting the projection axis
-            // Loop through all models vertices
-            // Recording for each model, its min and max values along the axis
-            float a_min = model_A[0].dot(projection_axis);
-            float a_max = a_min;
+            // Get the maximum and minimum values for projections
+            ProjectionMinMax proj_A = SATGetPolyProjectionMinMax(model_A, projection_axis);
+            ProjectionMinMax proj_B = SATGetPolyProjectionMinMax(model_B, projection_axis);
 
-            for (int j = 1; j < model_A.length; j++) {
-                float dot = model_A[j].dot(projection_axis);
-                a_min = min(a_min, dot);
-                a_max = max(a_max, dot);
-            }
-
-            float b_min = model_B[0].dot(projection_axis);
-            float b_max = b_min;
-
-            for (int j = 1; j < model_B.length; j++) {
-                float dot = model_B[j].dot(projection_axis);
-                b_min = min(b_min, dot);
-                b_max = max(b_max, dot);
-            }
-
-            // Now when check if the one dimensional projection of model_A
-            // collides with the one dimensional projection of model_B
-            // If not, this means that the two objects aren't colliding
-            if (a_max < b_min || b_max < a_min) {
+            // Check collision between projections
+            boolean colliding = SATCheckProjectionsCollision(proj_A, proj_B);
+            if (!colliding) {
                 return false;
             }
 
-            // abs function called for account for the signal of the depth
-            //float depth = min(a_max - b_min, b_max - a_min);
-            float depth_1 = a_max - b_min;
-            float depth_2 = a_min - b_max;
-            float final_depth = depth_1;
-            if (abs(depth_1) > abs(depth_2)) {
-                final_depth = depth_2;
-            }
-
-            // If the depth is the smallest ever encountered, store it in the output CollisionInfo
+            // If the collision depth is the smallest ever encountered, store it in the output CollisionInfo
+            float final_depth = SATGetProjectionsCollisionDepth(proj_A, proj_B);
             if (abs(final_depth) < abs(out.depth)) {
                 out.depth = final_depth;
                 out.normal = projection_axis;
@@ -99,99 +133,44 @@ boolean CheckPolyCircleOverlap(Body poly_body, Body circle, CollisionInfo out) {
         PVector edge_vector = PVector.sub(vertex0, vertex1);
         PVector projection_axis = new PVector(-edge_vector.y, edge_vector.x).normalize();
 
-        // After getting the projection axis
-        // Loop through all models vertices
-        // Recording for each model, its min and max values along the axis
-        float a_min = poly_model[0].dot(projection_axis);
-        float a_max = a_min;
+        // Get the maximum and minimum values for the projections of each shape
+        ProjectionMinMax poly_proj = SATGetPolyProjectionMinMax(poly_model, projection_axis);
+        ProjectionMinMax circle_proj = SATGetCircleProjectionMinMax(circle.position, circle.radius, projection_axis);
 
-        for (int j = 1; j < poly_model.length; j++) {
-            float dot = poly_model[j].dot(projection_axis);
-            a_min = min(a_min, dot);
-            a_max = max(a_max, dot);
-        }
-
-        // Project the circle center then add/subtract the radius to find the circle max and min projections
-        float projected_center = circle.position.dot(projection_axis);
-        float b_max = projected_center + circle.radius;
-        float b_min = projected_center - circle.radius;
-
-        // Now when check if the one dimensional projection of model_A
-        // collides with the one dimensional projection of model_B
-        // If not, this means that the two objects aren't colliding
-        if (a_max < b_min || b_max < a_min) {
+        // Check for collision between the two projections
+        // If neither projection collides, the two objects aren't colliding
+        boolean colliding = SATCheckProjectionsCollision(poly_proj, circle_proj);
+        if (!colliding) {
             return false;
         }
 
-        // abs function called for account for the signal of the depth
-        //float depth = min(a_max - b_min, b_max - a_min);
-        float depth_1 = a_max - b_min;
-        float depth_2 = a_min - b_max;
-        float final_depth = depth_1;
-        if (abs(depth_1) > abs(depth_2)) {
-            final_depth = depth_2;
-        }
-
         // If the depth is the smallest ever encountered, store it in the output CollisionInfo
+        float final_depth = SATGetProjectionsCollisionDepth(poly_proj, circle_proj);
         if (abs(final_depth) < abs(out.depth)) {
             out.depth = final_depth;
             out.normal = projection_axis;
         }
     }
 
-    // Find the poly nearest vertex to circle
-    int nearest_vertex_index = 0;
-    float nearest_distance_squared = PVector.sub(circle.position, poly_model[0]).magSq();
-    for (int i = 1; i < poly_model.length; i++) {
-        float current_distance_squared = PVector.sub(circle.position, poly_model[i]).magSq();
-        if (current_distance_squared < nearest_distance_squared) {
-            nearest_distance_squared = current_distance_squared;
-            nearest_vertex_index = i;
-        }
-    }
-    PVector nearest_vertex = poly_model[nearest_vertex_index];
+    // Do a extra projection but using the axis between the circle and nearest vertex as the projection vector
+    PVector nearest_vertex = SATFindNearestVertexToCircle(circle.position, poly_model);
     PVector to_nearest_vector = PVector.sub(nearest_vertex, circle.position);
+
     PVector projection_axis = new PVector(-to_nearest_vector.y, to_nearest_vector.x).normalize();
-    // Use the vertor of the circle as projection axis
-    // After getting the projection axis
-    // Loop through all models vertices
-    // Recording for each model, its min and max values along the axis
-    float a_min = poly_model[0].dot(projection_axis);
-    float a_max = a_min;
 
-    for (int j = 1; j < poly_model.length; j++) {
-        float dot = poly_model[j].dot(projection_axis);
-        a_min = min(a_min, dot);
-        a_max = max(a_max, dot);
-    }
+    ProjectionMinMax poly_proj = SATGetPolyProjectionMinMax(poly_model, projection_axis);
+    ProjectionMinMax circle_proj = SATGetCircleProjectionMinMax(circle.position, circle.radius, projection_axis);
 
-    // Project the circle center then add/subtract the radius to find the circle max and min projections
-    float projected_center = circle.position.dot(projection_axis);
-    float b_max = projected_center + circle.radius;
-    float b_min = projected_center - circle.radius;
-
-    // Now when check if the one dimensional projection of model_A
-    // collides with the one dimensional projection of model_B
-    // If not, this means that the two objects aren't colliding
-    if (a_max < b_min || b_max < a_min) {
+    boolean colliding = SATCheckProjectionsCollision(poly_proj, circle_proj);
+    if (!colliding) {
         return false;
     }
 
-    // abs function called for account for the signal of the depth
-    //float depth = min(a_max - b_min, b_max - a_min);
-    float depth_1 = a_max - b_min;
-    float depth_2 = a_min - b_max;
-    float final_depth = depth_1;
-    if (abs(depth_1) > abs(depth_2)) {
-        final_depth = depth_2;
-    }
-
-    // If the depth is the smallest ever encountered, store it in the output CollisionInfo
+    float final_depth = SATGetProjectionsCollisionDepth(poly_proj, circle_proj);
     if (abs(final_depth) < abs(out.depth)) {
         out.depth = final_depth;
         out.normal = projection_axis;
     }
-
 
     // If there is collision on all axis, this means that the two shapes are colliding
     return true;
@@ -199,7 +178,6 @@ boolean CheckPolyCircleOverlap(Body poly_body, Body circle, CollisionInfo out) {
 
 
 // -------------------------------- Collision --------------------------------
-
 boolean CollideCircles(Body body1, Body body2) {
     float distance_squared = PVector.sub(body1.position, body2.position).magSq();
     float radius_sum = body1.radius + body2.radius;
