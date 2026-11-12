@@ -7,6 +7,7 @@ class Camera {
 }
 
 
+
 void CameraKeyboardInput(Camera camera, KeyboardState state) {
     PVector direction = InputWASDAsVector(state);
     camera.position.add(direction.normalize().mult(camera.speed * 100 / camera.zoom));

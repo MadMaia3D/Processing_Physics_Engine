@@ -1,5 +1,6 @@
 Camera camera = new Camera();
 KeyboardState keyboard = new KeyboardState();
+MouseState mouse = new MouseState();
 Body[] polygons;
 
 void mouseWheel(MouseEvent event) {
@@ -28,14 +29,14 @@ void setup() {
         PVector position = new PVector(x, y);
         float radius = random(0.3, 0.5);
         int type = (int)random(0, 2);
-        
+
         if (type == 0) {
             PVector[] poly_model = CreateRegularPolygonModel((int)random(3, 8), radius);
             polygons[i] = CreatePolyBody(position, poly_model);
         } else {
             polygons[i] = CreateCircleBody(position, radius - 0.05);
         }
-        
+
         polygons[i].display_color = color(random(0, 360), 50, 100);
         polygons[i].rotation = random(-PI, PI);
     }
@@ -44,13 +45,17 @@ void setup() {
 
 
 void draw() {
-    if (keyboard.space) {
-        CameraKeyboardInput(camera, keyboard);
-    } else {
-        PVector arrows_direction = InputWASDAsVector(keyboard);
-        float travel_speed = keyboard.shift ? 0.1 : 0.01;
-        polygons[0].position.add(arrows_direction.normalize().mult(travel_speed));
+    UpdateMousePosition(mouse);
+    if (mousePressed) {
+        PVector delta = GetMouseDeltaPosition(mouse);
+        delta.x *= -1;
+        delta.mult(100 / camera.zoom);
+        camera.position.add(delta);
     }
+
+    PVector arrows_direction = InputWASDAsVector(keyboard);
+    float travel_speed = keyboard.shift ? 0.1 : 0.01;
+    polygons[0].position.add(arrows_direction.normalize().mult(travel_speed));
 
 
     if (keyPressed) {
@@ -60,9 +65,7 @@ void draw() {
         } else if (key == 'e') {
             angle = -0.02;
         }
-        for (int i = 0; i < polygons.length; i++) {
-            polygons[i].rotation += angle;
-        }
+        polygons[0].rotation += angle;
     }
 
     // --------------------- Drawing ---------------------
